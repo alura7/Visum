@@ -25,33 +25,20 @@ country <- url %>% read_html() %>% html_nodes('table') %>% html_table()
 
 
 dt <- country[[1]]
-View(dt)
+
 colnames(dt) <- dt[1,]
 dt <- dt[-1,]
 #dt <-  dt[2]
 dt <- dt[1:198,1:2]
-View(dt)
-View(visum_yes_no)
 
-countrycode('Äquatorialguinea', origin = 'country.name.de', destination = 'iso.name.en')
+
 code_country <- lapply(dt[[1]], function(x) countrycode(x, origin = 'country.name.de', destination = 'iso.name.en'))
 
-code_country <- map_df(dt[,1], function(x) countrycode(x, origin = 'country.name.de', destination = 'iso.name.en'))
-View(code_country)
 
-class(code_country)
-code_country
-colnames(dt)
-dt2 <- dt %>% 
-  mutate(`Staaten und Gebietskörperschaften` = strsplit(`Staaten und Gebietskörperschaften`, '[()]')) %>% 
-  unnest(`Staaten und Gebietskörperschaften`)
-
-View(dt5)
-colnames(dt)
-#I desided to just remove the inforation inside the brackets to make hte country coding easiers remove the information in the brackets
+#I decided to just remove the information inside the brackets to make the country coding easiers remove the information in the brackets
 dt3 <- gsub("\\s*\\([^\\)]+\\)","", dt$`Country/ territorial community`)
 
-View(dt5)
+
 
 dt5 <- cbind(dt3, dt[,2])
 dt5 <-dt5[-1,]
@@ -59,55 +46,21 @@ colnames(dt5)
 dt5 <-  dt5 %>% dplyr::rename(countries = "dt3",
                               visum = "Entry visa required no/yes")
 
-# code_country_2 <- map_df(dt4[,1], function(x) countrycode(x, origin = 'country.name.de', destination = 'iso.name.en'))
-# View(code_country_2)
-
-
-#code_country_3 <- map_df(dt4[,1], function(x) countrycode(x, origin = 'country.name.de', destination = 'country.name.en'))
-
-#countrycode(c("Großbritannien"), origin = 'country.name.de', destination = 'country.name.en')
-
 View(code_country_3)
 
-# so we still get some warnings and I tried to fix some of them to make the errors less so Soa Tomé is with an accent that is 
-# why it is not translating - 2.) Slowakische Republik is not translating - change to Slowakei - will work
-#3.)Vereinigtes Königreich Großbritannien und Nordirland - Großbritannien will work
-#4.)Weißrussland - Belarus will work
-# so let us get to changing - there might be a better way to do this - research/think about it
-#5.) Kongo - Demokratische Republik Kongo
-#countrycode("Süd Korea", origin = 'country.name.de', destination = 'country.name.en')
-
-
-
-# dt4 <-  dt4 %>% dplyr::rename(countries = "Staaten und Gebietskörperschaften",
-#                               visum = "Visumpflicht für Deutschland: Ja/Nein")
-
-dt5$countries[dt5$countries  == "Vereinigtes Königreich Großbritannien und Nordirland"] <- "Großbritannien"
-dt5$countries[dt5$countries  == "Slowakische Republik"] <- "Slowakei"
-# not really sure this will work 
-dt5$countries[dt5$countries  == "Sao Tom&eacute; und Principe"] <- "Sao Tome and Principe"
-#Kongo 
-which(grepl("Kongo",dt5$countries))
-dt5$countries[82] <- "Demokratische Republik Kongo"
-#Korea
-which(grepl("Korea",dt5$countries))
-dt5$countries[89] <- "South Korea"
-dt5$countries[85] <- "Nord Korea"
-#Weißrussland 
-which(grepl("Weißrussland",dt5$countries))
-dt5 <- dt5[-c(197),]
-
-#okay lets try again 
-                
+# getting the country names to match universial standards
 code_country_4 <- lapply(dt5[[1]], function(x) countrycode(x, origin = 'country.name.en', destination = 'country.name.en')) %>% unlist()
 
 #code_country_4 <- map_df(dt5[[1]], function(x) countrycode(x, origin = 'country.name.de', destination = 'country.name.en'))
 
 View(visum_yes_no)
 #putting it together finally!!!!
+                         
 visum_yes_no <- cbind(code_country_4,dt5[,2]) %>%  as.data.frame()
 #visum_yes_no <- visum_yes_no %>% dplyr::rename(countries = "code_country_4")
 colnames(visum_yes_no) <- c("countries", "yes/no")
+ #replacing the & with and 
+visum_yes_no <- gsub("&","and", visum_yes_no)
 # few it seemed to work. Happy face.
 
 
@@ -118,26 +71,6 @@ file <- unzip("World_Countries_(Generalized).zip")
 countries_map <- st_read("World_Countries__Generalized_.shp")
 
 colnames(visum_yes_no)
-merged_countries <- merge(countries_map, visum_yes_no, by.x = "COUNTRYAFF", by.y = "countries", all.x = T)
-
-View(visum_yes_no)
-# again remove brackets
-
-visum_yes_no <- gsub("\\s*\\([^\\)]+\\)","", visum_yes_no["countries"])
-#replacing the & with and 
-visum_yes_no <- gsub("&","and", visum_yes_no)
-#getting the df backtogether 
-#visum_yes_no <- cbind(visum_yes_no,dt5[,2])
-
-visum_yes_no <- cbind(visum_yes_no,dt)
-
-
-View(visum_yes_no)
-visum_yes_no$visum <- NULL
-colnames(visum_yes_no) <- c("countries", "visum")
-
-
-#merging the dfs
 merged_countries <- merge(countries_map, visum_yes_no, by.x = "COUNTRYAFF", by.y = "countries", all.x = T)
 
 View(merged_countries)
@@ -197,32 +130,16 @@ para <- para[200:208,1]
 View(para)
 colnames(para) <- "numbs_explained"
 
-#extracked only those with numbers 
-#str_extract(str1, '(?<=\\()[0-9-]+(?=\\))')
-#numbs <- lapply(para, function(x) strsplit(x, '[0-9-].*'))
-# which index have number plus ) after e.g. 1)
-# which(grepl('([0-9]+)).*$', para$numbs_explained))
-# which(grepl('1([0-9]+)).*$', para$numbs_explained))
-# 
-# 
-# no_vis_numb <- para[5:13,]
 no_vis_numb <- para
-View(no_vis_numb)
-
-#lapply(trail$visum, function (x) str_contains(x, '1'))
-View(para)
 
 
 #empty column
 merged_countries$no_vis_num <- NA
 
-View(dt)
-View(visum_yes_no)
 #check what different combinations there are
 unique_combo <- lapply(merged_countries$`yes/no`, function (x) str_extract_all(x, "\\([^()]+\\)")[[1]]) %>% unique() %>% unlist()                       
-View(unique_combo)
-#Use unique combination for case_when - look at better way to do this!
 
+#Use unique combination for case_when - look at better way to do this!
 
 #case_when better than nested ifelse
 merged_countries <-  merged_countries %>% mutate(
@@ -245,9 +162,7 @@ merged_countries <-  merged_countries %>% mutate(
                                    TRUE ~ "NA"))) 
 
 
-str(merged_countries)
 merged_countries$no_vis_num <- merged_countries$no_vis_num %>% unlist() %>% as.character()
-View(merged_countries)
 
 
 merged_countries$no_vis_num[merged_countries$no_vis_num  == "NA"] <- ""
@@ -268,7 +183,6 @@ saveRDS(merged_countries, file = "visum_data.rds")
 url_table <- "https://www.solo-urlaub.de/alle-visafreien-laender-im-ueberblick/"
 
 table <- url_table %>% read_html() %>% html_node('table') %>% html_table()
-View(table)
 visum_ger <- table[,2:3]
 colnames(visum_ger) <- c("Laender", "visum")
 
@@ -278,7 +192,6 @@ code_country_en <- map_df(visum_ger[,1], function(x) countrycode(x, origin = 'co
 table(is.na(code_country_en))
 visum_ger_en <- cbind(visum_ger, code_country_en)
 
-View(visum_ger_en)
 
 colnames(visum_ger_en) <- c("Laender", "visum", "country")
 
@@ -303,7 +216,7 @@ visum_ger_en[133,3] <- "Papua New Guinea"
 visum_ger_en[196,3] <- "Belarus"
 
 visum_ger_en <- visum_ger_en[,2:3]
-View(visum_ger_en)
+
 
 #merging the dfs
 merged_countries_ger <- merge(countries_map, visum_ger_en, by.x = "COUNTRYAFF", by.y = "country", all.x = T)
@@ -366,7 +279,7 @@ merged_countries_ger$visum[merged_countries_ger$visum  == "NA"] <- ""
 saveRDS(merged_countries_ger, file = "visum_data_ger.rds")
 
 ##############
-######## https://www.passportindex.org/passport/germany/
+######## https://www.passportindex.org/passport/germany/ -COVID-19  -Update
 #################
 
 url_table_2 <- "https://www.passportindex.org/passport/germany/"
