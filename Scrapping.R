@@ -1,0 +1,408 @@
+library(rvest)#Easily Harvest (Scrape) Web Pages. html_nodes
+library(tidyverse)#Designed to make it easy to install and load multiple 'tidyverse' packages in a single step.
+library(magrittr)#A Forward-Pipe Operator for R
+library(scales)
+library(knitr)
+library(lubridate)#Lubridate provides tools that make it easier to parse and manipulate dates.
+library(ggrepel)#This package contains extra geoms for ggplot2.
+
+library(sjmisc) #string contains 
+library(countrycode)
+library(stringr)
+# Verbose regular expressions
+library(rebus)
+
+
+
+#So I thought this would be a quick, fun side project - ofcourse it is never sooo easy cleaning up data
+# scrapped from the internet is never fun!!! Sad face. 
+##Overview of visa requirements/exemptions for entry into the Federal Republic of Germany
+
+url <- "https://www.auswaertiges-amt.de/de/service/visa-und-aufenthalt/staatenliste-zur-visumpflicht/207820"
+
+
+country <- url %>% read_html() %>% html_nodes('table') %>% html_table()
+
+
+dt <- country[[1]]
+View(dt)
+colnames(dt) <- dt[1,]
+dt <- dt[-1,]
+#dt <-  dt[2]
+dt <- dt[1:198,1:2]
+View(dt)
+View(visum_yes_no)
+
+countrycode('Äquatorialguinea', origin = 'country.name.de', destination = 'iso.name.en')
+code_country <- lapply(dt[[1]], function(x) countrycode(x, origin = 'country.name.de', destination = 'iso.name.en'))
+
+code_country <- map_df(dt[,1], function(x) countrycode(x, origin = 'country.name.de', destination = 'iso.name.en'))
+View(code_country)
+
+class(code_country)
+code_country
+colnames(dt)
+dt2 <- dt %>% 
+  mutate(`Staaten und Gebietskörperschaften` = strsplit(`Staaten und Gebietskörperschaften`, '[()]')) %>% 
+  unnest(`Staaten und Gebietskörperschaften`)
+
+View(dt5)
+colnames(dt)
+#I desided to just remove the inforation inside the brackets to make hte country coding easiers remove the information in the brackets
+dt3 <- gsub("\\s*\\([^\\)]+\\)","", dt$`Country/ territorial community`)
+
+View(dt5)
+
+dt5 <- cbind(dt3, dt[,2])
+dt5 <-dt5[-1,]
+colnames(dt5)
+dt5 <-  dt5 %>% dplyr::rename(countries = "dt3",
+                              visum = "Entry visa required no/yes")
+
+# code_country_2 <- map_df(dt4[,1], function(x) countrycode(x, origin = 'country.name.de', destination = 'iso.name.en'))
+# View(code_country_2)
+
+
+#code_country_3 <- map_df(dt4[,1], function(x) countrycode(x, origin = 'country.name.de', destination = 'country.name.en'))
+
+#countrycode(c("Großbritannien"), origin = 'country.name.de', destination = 'country.name.en')
+
+View(code_country_3)
+
+# so we still get some warnings and I tried to fix some of them to make the errors less so Soa Tomé is with an accent that is 
+# why it is not translating - 2.) Slowakische Republik is not translating - change to Slowakei - will work
+#3.)Vereinigtes Königreich Großbritannien und Nordirland - Großbritannien will work
+#4.)Weißrussland - Belarus will work
+# so let us get to changing - there might be a better way to do this - research/think about it
+#5.) Kongo - Demokratische Republik Kongo
+#countrycode("Süd Korea", origin = 'country.name.de', destination = 'country.name.en')
+
+
+
+# dt4 <-  dt4 %>% dplyr::rename(countries = "Staaten und Gebietskörperschaften",
+#                               visum = "Visumpflicht für Deutschland: Ja/Nein")
+
+dt5$countries[dt5$countries  == "Vereinigtes Königreich Großbritannien und Nordirland"] <- "Großbritannien"
+dt5$countries[dt5$countries  == "Slowakische Republik"] <- "Slowakei"
+# not really sure this will work 
+dt5$countries[dt5$countries  == "Sao Tom&eacute; und Principe"] <- "Sao Tome and Principe"
+#Kongo 
+which(grepl("Kongo",dt5$countries))
+dt5$countries[82] <- "Demokratische Republik Kongo"
+#Korea
+which(grepl("Korea",dt5$countries))
+dt5$countries[89] <- "South Korea"
+dt5$countries[85] <- "Nord Korea"
+#Weißrussland 
+which(grepl("Weißrussland",dt5$countries))
+dt5 <- dt5[-c(197),]
+
+#okay lets try again 
+                
+code_country_4 <- lapply(dt5[[1]], function(x) countrycode(x, origin = 'country.name.en', destination = 'country.name.en')) %>% unlist()
+
+#code_country_4 <- map_df(dt5[[1]], function(x) countrycode(x, origin = 'country.name.de', destination = 'country.name.en'))
+
+View(visum_yes_no)
+#putting it together finally!!!!
+visum_yes_no <- cbind(code_country_4,dt5[,2]) %>%  as.data.frame()
+#visum_yes_no <- visum_yes_no %>% dplyr::rename(countries = "code_country_4")
+colnames(visum_yes_no) <- c("countries", "yes/no")
+# few it seemed to work. Happy face.
+
+
+
+# Okay... next step, merging my shp df and visum_yes_no
+# Ah shit need to find out where I got the file from- at least I have a rough idea what i googled 
+file <- unzip("World_Countries_(Generalized).zip")
+countries_map <- st_read("World_Countries__Generalized_.shp")
+
+colnames(visum_yes_no)
+merged_countries <- merge(countries_map, visum_yes_no, by.x = "COUNTRYAFF", by.y = "countries", all.x = T)
+
+View(visum_yes_no)
+# again remove brackets
+
+visum_yes_no <- gsub("\\s*\\([^\\)]+\\)","", visum_yes_no["countries"])
+#replacing the & with and 
+visum_yes_no <- gsub("&","and", visum_yes_no)
+#getting the df backtogether 
+#visum_yes_no <- cbind(visum_yes_no,dt5[,2])
+
+visum_yes_no <- cbind(visum_yes_no,dt)
+
+
+View(visum_yes_no)
+visum_yes_no$visum <- NULL
+colnames(visum_yes_no) <- c("countries", "visum")
+
+
+#merging the dfs
+merged_countries <- merge(countries_map, visum_yes_no, by.x = "COUNTRYAFF", by.y = "countries", all.x = T)
+
+View(merged_countries)
+
+#checking for missing values
+missing_values <- subset(merged_countries, is.na(merged_countries$`yes/no`))
+# AH still a lot but managable 
+View(missing_values)
+
+colnames(merged_countries)
+#lets do Congo 
+which(grepl("Congo", merged_countries$COUNTRYAFF))
+merged_countries$`yes/no`[45:46] <- "yes"
+#Germany
+which(grepl("Germany", merged_countries$COUNTRYAFF))
+merged_countries$`yes/no`[87] <- "no"
+
+#Russia
+which(grepl("Russian Federation", merged_countries$COUNTRYAFF))
+merged_countries$`yes/no`[175] <- "yes"
+View(country[[1]])
+#Czech Republic
+which(grepl("Czech Republic", merged_countries$COUNTRYAFF))
+merged_countries$`yes/no`[52] <- "no" 
+
+#Trinidad and Tobago
+which(grepl("Trinidad and Tobago", merged_countries$COUNTRYAFF))
+merged_countries$`yes/no`[211] <- "no (1)" 
+
+#Bosnia and Herzegovina
+which(grepl("Bosnia and Herzegovina", merged_countries$COUNTRYAFF))
+merged_countries$`yes/no`[28] <- "no (1, 5)" 
+
+#Palestinian Territory
+which(grepl("Palestinian Territory", merged_countries$COUNTRYAFF))
+merged_countries$`yes/no`[165] <- "yes" 
+
+#Myanmar
+which(grepl("Myanmar", merged_countries$COUNTRYAFF))
+merged_countries$`yes/no`[140] <- "yes" 
+
+#Côte d'Ivoire
+which(grepl("Côte d'Ivoire", merged_countries$COUNTRYAFF))
+merged_countries$`yes/no`[48] <- "yes" 
+colnames(visum_yes_no)
+
+
+# more  information what do the numbers mean?
+urlEn <- "https://www.auswaertiges-amt.de/en/einreiseundaufenthalt/-/231148"
+#para <- urlEn %>% read_html() %>% html_nodes('table') %>% html_text() %>% as.data.frame()
+para <- urlEn %>% read_html() %>% html_nodes('table') %>% html_table()
+para <- para[[1]]
+
+colnames(para) <- para[1,]
+para <- para[200:208,1]
+
+View(para)
+colnames(para) <- "numbs_explained"
+
+#extracked only those with numbers 
+#str_extract(str1, '(?<=\\()[0-9-]+(?=\\))')
+#numbs <- lapply(para, function(x) strsplit(x, '[0-9-].*'))
+# which index have number plus ) after e.g. 1)
+# which(grepl('([0-9]+)).*$', para$numbs_explained))
+# which(grepl('1([0-9]+)).*$', para$numbs_explained))
+# 
+# 
+# no_vis_numb <- para[5:13,]
+no_vis_numb <- para
+View(no_vis_numb)
+
+#lapply(trail$visum, function (x) str_contains(x, '1'))
+View(para)
+
+
+#empty column
+merged_countries$no_vis_num <- NA
+
+View(dt)
+View(visum_yes_no)
+#check what different combinations there are
+unique_combo <- lapply(merged_countries$`yes/no`, function (x) str_extract_all(x, "\\([^()]+\\)")[[1]]) %>% unique() %>% unlist()                       
+View(unique_combo)
+#Use unique combination for case_when - look at better way to do this!
+
+
+#case_when better than nested ifelse
+merged_countries <-  merged_countries %>% mutate(
+                  no_vis_num = lapply(merged_countries$`yes/no`, function(x) 
+                      case_when( 
+                                (str_contains(x, '1') & str_contains(x, '3') & str_contains(x, '7')) ~ paste0(no_vis_numb[1,],"\n",no_vis_numb[3,],"\n",no_vis_numb[7,]),
+                                (str_contains(x, '1') & str_contains(x, '3')) ~ paste0(no_vis_numb[1,], "\n", no_vis_numb[3,]),
+                                (str_contains(x, '1') & str_contains(x, '4')) ~ paste0(no_vis_numb[1,],"\n",no_vis_numb[4,]),
+                                 (str_contains(x, '1') & str_contains(x, '5')) ~paste0(no_vis_numb[1,],"\n",no_vis_numb[5,]),
+                                (str_contains(x, '1') & str_contains(x, '8')) ~ paste0(no_vis_numb[1,],"\n",no_vis_numb[8,]),
+                                 str_contains(x, '1') ~ paste0(no_vis_numb[1,]),
+                                 str_contains(x, '2') ~ paste0(no_vis_numb[2,]),
+                                 str_contains(x, '3') ~ paste0(no_vis_numb[3,]),
+                                  str_contains(x, '4') ~ paste0(no_vis_numb[4,]),
+                                  str_contains(x, '5') ~ paste0(no_vis_numb[5,]),
+                                  str_contains(x, '6') ~ paste0(no_vis_numb[6,]),
+                                  str_contains(x, '7') ~ paste0(no_vis_numb[7,]),
+                                  str_contains(x, '8') ~ paste0(no_vis_numb[8,]),
+                                  str_contains(x, '9') ~ paste0(no_vis_numb[9,]),
+                                   TRUE ~ "NA"))) 
+
+
+str(merged_countries)
+merged_countries$no_vis_num <- merged_countries$no_vis_num %>% unlist() %>% as.character()
+View(merged_countries)
+
+
+merged_countries$no_vis_num[merged_countries$no_vis_num  == "NA"] <- ""
+
+
+saveRDS(merged_countries, file = "visum_data.rds")
+
+########################
+
+###### Second panel - from Germany to other countries
+
+#######################
+
+
+###  https://www.solo-urlaub.de/alle-visafreien-laender-im-ueberblick/
+## Scrapping table from  2019 which countries you can travel without a visum 
+
+url_table <- "https://www.solo-urlaub.de/alle-visafreien-laender-im-ueberblick/"
+
+table <- url_table %>% read_html() %>% html_node('table') %>% html_table()
+View(table)
+visum_ger <- table[,2:3]
+colnames(visum_ger) <- c("Laender", "visum")
+
+
+#change the countries names to  english for merging of  the maps
+code_country_en <- map_df(visum_ger[,1], function(x) countrycode(x, origin = 'country.name.de', destination = 'country.name.en'))
+table(is.na(code_country_en))
+visum_ger_en <- cbind(visum_ger, code_country_en)
+
+View(visum_ger_en)
+
+colnames(visum_ger_en) <- c("Laender", "visum", "country")
+
+#see which rows have missing values
+new_DF <- visum_ger_en[rowSums(is.na(visum_ger_en)) > 0,]
+View(new_DF)
+as.numeric(rownames(new_DF))
+
+#Äquatorial Guinea
+visum_ger_en[8,3] <- "Equatorial Guinea"
+#Jamaica
+visum_ger_en[67,3] <- "Jamaica"
+#Kirgistan
+visum_ger_en[77,3] <- "Kyrgyzstan"
+#Marschall Inseln
+visum_ger_en[105,3] <- "Marshall Islands"
+#Moldawien
+visum_ger_en[110,3] <- "Moldova"
+#Papua New Guinea
+visum_ger_en[133,3] <- "Papua New Guinea"
+#Weißrussland
+visum_ger_en[196,3] <- "Belarus"
+
+visum_ger_en <- visum_ger_en[,2:3]
+View(visum_ger_en)
+
+#merging the dfs
+merged_countries_ger <- merge(countries_map, visum_ger_en, by.x = "COUNTRYAFF", by.y = "country", all.x = T)
+missing_val <- merged_countries_ger[rowSums(is.na(merged_countries_ger)) > 0,]
+View(missing_val)
+
+#checking for missing values
+missing_values <- subset(merged_countries_ger, is.na(merged_countries_ger$visum))
+# AH still a lot but managable 
+View(missing_values)
+
+colnames(merged_countries_ger)
+#lets do Congo 
+which(grepl("Congo", merged_countries_ger$COUNTRYAFF))
+merged_countries_ger$visum[45:46] <- "Visum benötigt"
+#Germany
+which(grepl("Germany", merged_countries_ger$COUNTRYAFF))
+merged_countries_ger$visum[87] <- "visafrei"
+
+#Russia
+which(grepl("Russian Federation", merged_countries_ger$COUNTRYAFF))
+merged_countries_ger$visum[175] <- "Visum benötigt"
+
+#Czech Republic
+which(grepl("Czech Republic", merged_countries_ger$COUNTRYAFF))
+merged_countries_ger$visum[52] <- "visafrei" 
+
+#Trinidad and Tobago
+which(grepl("Trinidad and Tobago", merged_countries_ger$COUNTRYAFF))
+merged_countries_ger$visum[210] <- "visafrei 90 Tage" 
+
+#Bosnia and Herzegovina
+which(grepl("Bosnia and Herzegovina", merged_countries_ger$COUNTRYAFF))
+merged_countries_ger$visum[28] <- "visafrei 90 Tage" 
+
+#Palestinian Territory
+which(grepl("Palestinian Territory", merged_countries_ger$COUNTRYAFF))
+merged_countries_ger$visum[165] <- "visafrei 90 Tage" 
+
+#Myanmar
+which(grepl("Myanmar", merged_countries_ger$COUNTRYAFF))
+merged_countries_ger$visum[140] <- "Visum benötigt / eVisa" 
+
+#Côte d'Ivoire
+which(grepl("Côte d'Ivoire", merged_countries_ger$COUNTRYAFF))
+merged_countries_ger$visum[48] <- "Visum benötigt" 
+colnames(visum_yes_no)
+#saint Lucia
+which(grepl("Saint Lucia", merged_countries_ger$COUNTRYAFF))
+merged_countries_ger$visum[178] <- "visafrei 90 Tage" 
+#Sao Tome and Principe
+which(grepl("Sao Tome and Principe", merged_countries_ger$COUNTRYAFF))
+merged_countries_ger$visum[182] <- "visafrei 15 Tage" 
+#Antigua and Barbuda
+which(grepl("Antigua and Barbuda", merged_countries_ger$COUNTRYAFF))
+merged_countries_ger$visum[7] <- "visafrei 180 Tage" 
+
+merged_countries_ger$visum[merged_countries_ger$visum  == "NA"] <- ""
+
+saveRDS(merged_countries_ger, file = "visum_data_ger.rds")
+
+##############
+######## https://www.passportindex.org/passport/germany/
+#################
+
+url_table_2 <- "https://www.passportindex.org/passport/germany/"
+
+table_2 <- url_table_2 %>% read_html() %>% html_node('table') %>% html_table() %>% as.data.frame()
+colnames(table_2) <- c("country","visum")
+View(table_2)
+
+merged_countries_en <- merge(countries_map, table_2, by.x = "COUNTRYAFF", by.y = "country", all.x = T)
+
+missing_values <- merged_countries_en[rowSums(is.na(merged_countries_en)) > 0,]
+View(missing_values)
+
+which(grepl("United States", merged_countries_en$COUNTRYAFF))
+merged_countries_en$visum[234:240] <- "eTA/90 days"
+
+#
+which(grepl("Vietnam", merged_countries_en$COUNTRYAFF))
+merged_countries_en$visum[246] <- "COVID-19 ban"
+#Myanmar
+which(grepl("Myanmar", merged_countries_en$COUNTRYAFF))
+merged_countries_en$visum[140] <- "visa on arrival / eVisa/30 days"
+
+#Germany
+which(grepl("Germany", merged_countries_en$COUNTRYAFF))
+merged_countries_en$visum[87] <- "visa-free"
+
+#Palestinian Territory
+which(grepl("Palestinian Territory", merged_countries_en$COUNTRYAFF))
+merged_countries_en$visum[165] <- "visa-free"
+
+#Congo DRC
+which(grepl("Congo", merged_countries_en$COUNTRYAFF))
+merged_countries_en$visum[46] <- "visa required"
+
+merged_countries_en$visum[merged_countries_en$visum  == "NA"] <- ""
+
+saveRDS(merged_countries_en, file = "visum_data_en.rds")
+
