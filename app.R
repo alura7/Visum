@@ -66,10 +66,10 @@ server <- function(input, output) {
   colnames(visum_data)
   content <- paste(sep = "<br/>",visum_data$no_vis_num)
   
-  label_map <- glue('<strong> <u> {visum_data$COUNTRYAFF}</u></strong> <br /> 
-                     <strong> <u> Visum required?</u></strong> : <br/>
-                    {visum_data$`yes/no`} <br />
-                     {visum_data$no_vis_num}') %>%  lapply(htmltools::HTML)
+  label_map <-   label_map <- glue('From <strong> {visum_data$COUNTRYAFF}</strong>? <br /> 
+                     Visum required to travel to Germany? : <br/>
+                     {visum_data$`yes/no`} <br />
+                     {visum_data$no_vis_num}') %>% lapply(htmltools::HTML)
   
    output$map <- leaflet::renderLeaflet({
       leaflet() %>% 
