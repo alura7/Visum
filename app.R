@@ -90,13 +90,10 @@ server <- function(input, output) {
        )
    })
    
-   
-   label_map2 <- glue('<strong> <u> {visum_data_ger$COUNTRYAFF}</u></strong> <br /> 
-                     <strong> <u> Visum required?</u></strong> : <br/>
-                     {visum_data_ger$visum} <br/>
-                      <br/>
-                      <u>Covid-19 Update 2021</u>: <br/>
-                      {visum_data_en$visum}') %>%  lapply(htmltools::HTML)
+      label_map2 <- glue(' Traveling to <strong>{visum_data_en$COUNTRYAFF}? </strong> <br/>
+                       <u> Visum required?</u>: <br/
+                      <u>(Covid-19 Update 2021)</u><br/>
+                      {visum_data_en$`visum.y`}') %>%  lapply(htmltools::HTML)
    
    output$map2 <- leaflet::renderLeaflet({
         leaflet() %>% 
