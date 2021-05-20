@@ -126,7 +126,7 @@ server <- function(input, output) {
 
        Covid-19 update - 2021 - passportindex.org
        Information without guarantee
-       ') %>%  lapply(htmltools::HTML) %>% paste0()
+       ')  %>% paste0()
      
      })
 }
