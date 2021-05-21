@@ -12,8 +12,7 @@ library(maps)
 library(sf)
 library(glue)
 library(htmltools)
-library(htmltools)
-library(rsconnect)
+
 
 file <- unzip("World_Countries_(Generalized).zip")
 
