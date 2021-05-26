@@ -28,44 +28,36 @@ dt <- country[[1]]
 
 colnames(dt) <- dt[1,]
 dt <- dt[-1,]
-#dt <-  dt[2]
 dt <- dt[1:198,1:2]
 
 
-code_country <- lapply(dt[[1]], function(x) countrycode(x, origin = 'country.name.de', destination = 'iso.name.en'))
-
-
 #I decided to just remove the information inside the brackets to make the country coding easiers remove the information in the brackets
-dt3 <- gsub("\\s*\\([^\\)]+\\)","", dt$`Country/ territorial community`)
+dt_re <- gsub("\\s*\\([^\\)]+\\)","", dt$`Country/ territorial community`)
 
 
 
-dt5 <- cbind(dt3, dt[,2])
-dt5 <-dt5[-1,]
-colnames(dt5)
-dt5 <-  dt5 %>% dplyr::rename(countries = "dt3",
+dt <- cbind(dt_re, dt[,2])
+dt <-dt[-1,]
+colnames(dt)
+dt <-  dt %>% dplyr::rename(countries = "dt_re",
                               visum = "Entry visa required no/yes")
 
-View(code_country_3)
 
 # getting the country names to match universial standards
 code_country_4 <- lapply(dt5[[1]], function(x) countrycode(x, origin = 'country.name.en', destination = 'country.name.en')) %>% unlist()
 
 #code_country_4 <- map_df(dt5[[1]], function(x) countrycode(x, origin = 'country.name.de', destination = 'country.name.en'))
 
-View(visum_yes_no)
-#putting it together finally!!!!
-                         
-visum_yes_no <- cbind(code_country_4,dt5[,2]) %>%  as.data.frame()
+
+#putting it together                        
+visum_yes_no <- cbind(code_country_4, dt[,2]) %>%  as.data.frame()
 #visum_yes_no <- visum_yes_no %>% dplyr::rename(countries = "code_country_4")
 colnames(visum_yes_no) <- c("countries", "yes/no")
  #replacing the & with and 
 visum_yes_no <- gsub("&","and", visum_yes_no)
-# few it seemed to work. Happy face.
 
 
-
-# Okay... next step, merging my shp df and visum_yes_no
+# merging my shp df and visum_yes_no
 # Ah shit need to find out where I got the file from- at least I have a rough idea what i googled 
 file <- unzip("World_Countries_(Generalized).zip")
 countries_map <- st_read("World_Countries__Generalized_.shp")
